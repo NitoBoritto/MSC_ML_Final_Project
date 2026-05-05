@@ -15,9 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.config import settings
-from src.serving import send_to_api
-from src.utils import validate_input
+from src.config import settings  # noqa: E402
+from src.serving import predict  # noqa: E402
+from src.utils import validate_input  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -80,22 +80,7 @@ def render_header():
 def render_sidebar():
     """Render sidebar with configuration and info."""
     with st.sidebar:
-        st.header("⚙️ Configuration")
-
-        # API URL configuration
-        api_url = st.text_input(
-            "API URL",
-            value=settings.API_URL,
-            help="FastAPI backend URL",
-        )
-
-        # Update session state
-        if api_url != settings.API_URL:
-            st.session_state.api_url = api_url
-        else:
-            st.session_state.api_url = settings.API_URL
-
-        st.divider()
+        st.header("ℹ️ Overview")
 
         # Model information
         st.header("ℹ️ Model Information")
@@ -275,13 +260,11 @@ def render_prediction(result: dict):
         result: Prediction result dictionary from API.
     """
     if "error" in result:
-        st.error(f"🚨 **API Error:** {result['error']}")
+        st.error(f"🚨 **Prediction Error:** {result['error']}")
         return
 
     prediction = result["prediction"]
     probability = result["churn_probability"]
-    label = result["label"]
-
     # ─────────────────────────────────────────────────────
     # Churn risk card
     # ─────────────────────────────────────────────────────
@@ -291,7 +274,7 @@ def render_prediction(result: dict):
     if prediction == 1:
         # High churn risk
         st.container(border=True).markdown(
-            f"""
+            """
             <div style="text-align: center;">
                 <h2 style="color: #ff6b6b;">🔴 High Churn Risk</h2>
                 <p style="font-size: 20px; color: #ff8787;">
@@ -356,7 +339,7 @@ def render_prediction(result: dict):
     else:
         # Low churn risk
         st.container(border=True).markdown(
-            f"""
+            """
             <div style="text-align: center;">
                 <h2 style="color: #51cf66;">🟢 Low Churn Risk</h2>
                 <p style="font-size: 20px; color: #69db7c;">
@@ -406,9 +389,6 @@ def main():
     # Render sidebar
     render_sidebar()
 
-    # Get API URL from session state if set
-    api_url = getattr(st.session_state, "api_url", settings.API_URL)
-
     # Collect form input
     form_data = render_input_form()
 
@@ -419,17 +399,12 @@ def main():
         if not validate_form(form_data):
             st.stop()
 
-        # Show spinner during API call
+        # Show spinner during prediction
         with st.spinner("🔄 Analyzing customer..."):
-            # Update API URL in settings context
-            original_url = settings.API_URL
-            settings.API_URL = api_url
-
-            # Send to API
-            result = send_to_api(form_data)
-
-            # Restore original URL
-            settings.API_URL = original_url
+            try:
+                result = predict(form_data)
+            except Exception as e:
+                result = {"error": str(e)}
 
         # Render prediction result
         render_prediction(result)
