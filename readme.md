@@ -1,405 +1,199 @@
-# Customer Churn Prediction - ML Pipeline
+# Customer Churn Prediction System
 
-Production-grade ML pipeline for predicting customer churn using XGBoost, with FastAPI backend and Streamlit dashboard.
+A production-oriented machine learning project for customer churn prediction using XGBoost, Optuna, MLflow, FastAPI, and Streamlit.
 
-## 📊 Overview
+## Executive Summary
 
-- **Task:** Binary classification (Churn / No Churn)
-- **Dataset:** 11 features + 1 target (customer behavior metrics)
-- **Model:** XGBoost with Optuna hyperparameter tuning
-- **Training:** MLflow experiment tracking
-- **Serving:** FastAPI REST API
-- **UI:** Interactive Streamlit dashboard
-- **Deployment:** Docker containerization + GitHub Actions CI/CD
+This project predicts whether a customer is likely to churn based on demographics, engagement, subscription profile, and billing behavior. It includes:
 
-## 🚀 Quick Start
+- End-to-end training pipeline from CSV data to serialized model
+- Hyperparameter tuning with Optuna
+- Experiment tracking with MLflow
+- REST API with FastAPI for service-style inference
+- Streamlit application for interactive business usage
+- Strong validation and error handling across UI, API, and model layers
 
-### 1. Install Dependencies
+## Business Goal
+
+Churn prediction supports retention strategy by identifying high-risk customers early. The model output includes both class prediction and churn probability so teams can prioritize interventions.
+
+## Technical Stack
+
+- Python, pandas, NumPy
+- scikit-learn pipelines and preprocessing
+- XGBoost classifier
+- Optuna for HPO
+- MLflow for experiment and model tracking
+- FastAPI for API endpoints
+- Streamlit for user-facing dashboard
+- Pydantic for input/config validation
+
+## Current Repository Structure
+
+```text
+.
+├── data/
+│   ├── train.csv
+│   └── test.csv
+├── notebooks/
+│   └── expirements.ipynb
+├── scripts/
+│   └── run_pipeline.py
+├── src/
+│   ├── app/
+│   │   ├── main.py
+│   │   └── ui.py
+│   ├── config/
+│   │   └── settings.py
+│   ├── data/
+│   │   ├── load_data.py
+│   │   └── preprocess.py
+│   ├── features/
+│   │   └── build_features.py
+│   ├── models/
+│   │   └── train.py
+│   ├── serving/
+│   │   ├── api_client.py
+│   │   ├── inference.py
+│   │   └── model/
+│   └── utils/
+│       └── validators.py
+├── mlruns/
+├── .gitignore
+├── readme.md
+└── requirements.txt
+```
+
+## How the System Works
+
+### 1. Data Loading and Preprocessing
+
+- CSV files are loaded with file and type safety checks.
+- Preprocessing handles:
+  - optional `CustomerID` removal
+  - numeric type coercion
+  - target mapping (`Yes/No` to `1/0`)
+  - missing value dropping
+
+### 2. Feature Engineering
+
+- Numeric features are scaled with `MinMaxScaler`.
+- Categorical features are encoded with `OneHotEncoder(drop="first", handle_unknown="ignore")`.
+- A single sklearn `ColumnTransformer` guarantees consistent train/inference transformations.
+
+### 3. Model Training
+
+- The classifier is `XGBClassifier`.
+- Hyperparameter search uses Optuna with `TPESampler`.
+- Cross-validation uses `StratifiedKFold`.
+- Objective prioritizes recall with variance penalty for robustness.
+
+### 4. Artifact and Experiment Tracking
+
+- Best trial parameters and metrics are logged to MLflow.
+- Model is saved both:
+  - locally (joblib) for fast direct inference
+  - in MLflow model registry for experiment lineage
+
+### 5. Inference Paths
+
+- API path: FastAPI `/predict` endpoint validates and predicts.
+- Direct path: Streamlit can call local inference directly via `predict()`.
+
+## Quick Start
+
+### 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Train the Model
+### 2. Train model
 
 ```bash
 python scripts/run_pipeline.py
 ```
 
-This will:
-- Load train.csv and test.csv
-- Preprocess data (type conversion, encoding)
-- Split into 80/20 train/test
-- Train XGBoost with Optuna (50 trials, 5-fold CV)
-- Save model to `src/serving/model/xgboost_model.joblib`
-- Log artifacts to MLflow
-
-**Output:**
-```
-✓ Model saved: src/serving/model/xgboost_model.joblib
-✓ MLflow tracking: ./mlruns
-✓ Run ID: <uuid>
-```
-
-### 3. Start API Server
+### 3. Run API (optional)
 
 ```bash
 uvicorn src.app.main:app --reload --port 8000
 ```
 
-Navigate to `http://localhost:8000/docs` for interactive API documentation.
-
-### 4. Start Streamlit Dashboard
-
-In a new terminal:
+### 4. Run Streamlit dashboard
 
 ```bash
 streamlit run src/app/ui.py
 ```
 
-Navigate to `http://localhost:8501`
-
-## 📁 Project Structure
-
-```
-src/
-├── config/
-│   ├── __init__.py
-│   └── settings.py           # Centralized config (features, paths, MLflow)
-├── data/
-│   ├── __init__.py
-│   ├── load_data.py          # CSV loading with validation
-│   └── preprocess.py         # Type conversion, encoding
-├── features/
-│   ├── __init__.py
-│   └── build_features.py     # sklearn ColumnTransformer (OHE + MinMaxScaler)
-├── models/
-│   ├── __init__.py
-│   └── train.py              # XGBoost + Optuna + MLflow
-├── serving/
-│   ├── __init__.py
-│   ├── model/                # Local model artifacts (created after training)
-│   ├── inference.py          # Model loading & prediction
-│   └── api_client.py         # HTTP client for FastAPI
-├── utils/
-│   ├── __init__.py
-│   └── validators.py         # Pydantic input validation
-└── app/
-    ├── __init__.py
-    ├── main.py               # FastAPI application
-    └── ui.py                 # Streamlit dashboard
-
-scripts/
-└── run_pipeline.py           # Full pipeline orchestration
-
-data/
-├── train.csv                 # Training data (800 rows)
-└── test.csv                  # Test data (200 rows)
-
-tests/                         # (Optional) Unit tests
-├── test_validators.py
-└── test_inference.py
-
-.github/
-└── workflows/
-    └── ci.yml                # GitHub Actions CI/CD pipeline
-
-Dockerfile                     # Multi-stage Docker build
-.dockerignore                  # Docker build exclusions
-requirements.txt               # Python dependencies
-README.md                      # This file
-```
-
-## 🔧 Configuration
-
-All settings are in `src/config/settings.py`:
-
-```python
-# Feature definitions
-FEATURE_NAMES = [
-    "Age", "Tenure", "Usage Frequency", "Support Calls", "Payment Delay",
-    "Subscription Type", "Contract Length", "Total Spend", "Last Interaction", "Gender"
-]
-
-NUMERIC_FEATURES = ["Age", "Tenure", "Usage Frequency", ...]
-CATEGORICAL_FEATURES = ["Subscription Type", "Contract Length", "Gender"]
-
-# Paths
-MODEL_PATH = "src/serving/model/xgboost_model.joblib"
-MLFLOW_TRACKING_URI = "./mlruns"
-
-# API
-API_URL = "http://localhost:8000"
-PREDICT_ENDPOINT = "/predict"
-```
-
-Override via environment variables (e.g., `API_URL=http://prod-api:8000`).
-
-## 📡 API Endpoints
-
-### Health Check
-```bash
-GET /health
-```
-
-Response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-05-05T10:30:00.000000"
-}
-```
-
-### Make Prediction
-```bash
-POST /predict
-```
-
-Request:
-```json
-{
-  "Age": 30,
-  "Tenure": 12,
-  "Usage Frequency": 14,
-  "Support Calls": 5,
-  "Payment Delay": 18,
-  "Subscription Type": "Standard",
-  "Contract Length": "Annual",
-  "Total Spend": 932.0,
-  "Last Interaction": 17,
-  "Gender": "Female"
-}
-```
-
-Response:
-```json
-{
-  "prediction": 0,
-  "churn_probability": 0.23,
-  "label": "No Churn"
-}
-```
-
-### Model Info
-```bash
-GET /model-info
-```
+## API Endpoints
 
-Response:
-```json
-{
-  "algorithm": "XGBoost",
-  "model_path": "src/serving/model/xgboost_model.joblib",
-  "feature_count": 10,
-  "numeric_features": 7,
-  "categorical_features": 3,
-  "version": "1.0.0"
-}
-```
-
-## 🐳 Docker Deployment
-
-### Build Image
-
-```bash
-docker build -t churn-ml:latest .
-```
-
-### Run Container
-
-```bash
-docker run -p 8000:8000 \
-  -e API_URL="http://0.0.0.0:8000" \
-  churn-ml:latest
-```
-
-Test health:
-```bash
-curl http://localhost:8000/health
-```
-
-## 🔄 CI/CD Pipeline (GitHub Actions)
-
-Workflow: `.github/workflows/ci.yml`
+- `GET /health`: service heartbeat
+- `POST /predict`: churn prediction
+- `GET /model-info`: model metadata
+- `GET /`: quick endpoint map
 
-### Jobs
-
-1. **Lint & Import Check** (~5 min)
-   - flake8 code style checks
-   - Module import validation
+## Data Contract for Prediction
 
-2. **Train & Validate Model** (~20 min)
-   - Run `scripts/run_pipeline.py`
-   - Verify model file exists
-   - Upload artifact
+Expected input fields:
 
-3. **Build & Push Docker** (~15 min)
-   - Build multi-stage Docker image
-   - Push to Docker Hub (main branch only)
+- `Age`
+- `Gender`
+- `Subscription Type`
+- `Contract Length`
+- `Usage Frequency`
+- `Support Calls`
+- `Tenure`
+- `Total Spend`
+- `Last Interaction`
+- `Payment Delay`
 
-### Required Secrets
+## Project Timeline and What Happened
 
-Add to GitHub repository settings → Secrets and variables:
+This repository evolved through real deployment and integration fixes. Major milestones:
 
-```
-DOCKER_USERNAME=<your-dockerhub-username>
-DOCKER_PASSWORD=<your-dockerhub-token>
-```
+1. Core pipeline implementation
+- Built modular training pipeline (`load -> preprocess -> feature build -> train -> evaluate -> save`).
+- Integrated MLflow logging and model registration.
 
-Generate token at: https://hub.docker.com/settings/security
+2. Import reliability improvements
+- Encountered `ModuleNotFoundError: No module named 'src'` in script/UI entrypoints.
+- Fixed with project-root `sys.path` bootstrap for direct execution contexts.
 
-## 🧪 Validation & Testing
+3. Validation schema alignment
+- Streamlit payload used space-based keys while validator expected mixed/underscored fields.
+- Added field aliases and removed obsolete required field mismatch to align UI and backend schema.
 
-### Input Validation
+4. Dependency hardening for deployment
+- Streamlit deployment failed at config import due to missing Pydantic packages.
+- Added `pydantic` and `pydantic-settings` to requirements.
 
-Pydantic validates all inputs:
+5. Streamlit production behavior update
+- Cloud app failed when trying to call `http://localhost:8000` (no API process in hosted Streamlit runtime).
+- Streamlit app updated to perform direct local inference and removed redundant API URL sidebar input.
 
-```python
-from src.utils import validate_input
+6. Repository hygiene for release readiness
+- Expanded `.gitignore` to exclude virtual environments, caches, logs, secrets, MLflow artifacts, and local model binaries.
 
-data = {"Age": 30, "Tenure": 12, ...}
-is_valid, error = validate_input(data)
+## Notes for Docker Readiness
 
-if not is_valid:
-    print(f"Error: {error}")
-```
+The current workspace does not contain container files (`Dockerfile`, `.dockerignore`) at root. If containerization is the next step, add those files based on the now-stable runtime path (direct Streamlit inference or API + UI split, depending on deployment strategy).
 
-### Inference Test
+## Operational Notes
 
-```python
-from src.serving import predict
+- If model file is missing, run training first: `python scripts/run_pipeline.py`.
+- MLflow runs are stored under `mlruns/`.
+- Use `.env` for environment-specific overrides where needed.
 
-result = predict({
-    "Age": 30, "Tenure": 12, "Usage Frequency": 14,
-    "Support Calls": 5, "Payment Delay": 18,
-    "Subscription Type": "Standard", "Contract Length": "Annual",
-    "Total Spend": 932, "Last Interaction": 17, "Gender": "Female"
-})
+## Maintainer Guidance
 
-print(result)  # {"prediction": 0, "churn_probability": 0.23, "label": "No Churn"}
-```
+When changing feature schema:
 
-## 📊 Model Details
-
-### Training Strategy
-
-- **Algorithm:** XGBoost Classifier
-- **Hyperparameter Tuning:** Optuna (50 trials, TPE sampler)
-- **Cross-Validation:** StratifiedKFold (5 splits)
-- **Scoring Metric:** Recall (prioritize catching churners)
-- **Class Weighting:** Balanced
-
-### Preprocessing Pipeline
-
-```
-Input (raw features)
-    ↓
-ColumnTransformer
-    ├─ Numeric: MinMaxScaler
-    │   (Age, Tenure, Usage Frequency, Support Calls, Payment Delay, Total Spend, Last Interaction)
-    └─ Categorical: OneHotEncoder(drop='first')
-        (Subscription Type, Contract Length, Gender)
-    ↓
-XGBoost Classifier
-    ↓
-Prediction (0/1) + Probability
-```
-
-### MLflow Tracking
-
-All runs tracked in `./mlruns/`:
-
-```bash
-# View experiments
-mlflow ui --backend-store-uri ./mlruns
-
-# Open browser to http://localhost:5000
-```
-
-## 🛠 Development
-
-### Add New Features
-
-1. Update feature list in `src/config/settings.py`
-2. Update Pydantic model in `src/utils/validators.py`
-3. Retrain model: `python scripts/run_pipeline.py`
-
-### Modify Preprocessing
-
-Edit `src/data/preprocess.py` or `src/features/build_features.py`, then retrain.
-
-### Change Model
-
-Replace XGBoost with LightGBM/LogisticRegression in `src/models/train.py`.
-
-## 🐛 Troubleshooting
-
-### Model Not Found
-```
-FileNotFoundError: src/serving/model/xgboost_model.joblib not found
-```
-**Solution:** Run `python scripts/run_pipeline.py` to train the model.
-
-### API Connection Error (Streamlit)
-```
-API unreachable at http://localhost:8000
-```
-**Solution:** Ensure FastAPI is running: `uvicorn src.app.main:app --reload`
-
-### Docker Build Fails
-```
-failed to solve with frontend dockerfile.v0
-```
-**Solution:** Ensure `requirements.txt` is in project root and `data/` folder exists.
-
-## 📝 Logging
-
-Logs are controlled via `LOG_LEVEL` setting:
-
-```python
-LOG_LEVEL = "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
-```
-
-All modules use standard Python `logging`:
-
-```python
-import logging
-logger = logging.getLogger(__name__)
-logger.info("Message")
-```
-
-## 📦 Dependencies
-
-Key packages (see `requirements.txt`):
-
-- **sklearn:** preprocessing, pipelines, model selection
-- **xgboost:** gradient boosting classifier
-- **optuna:** hyperparameter tuning
-- **mlflow:** experiment tracking & artifact storage
-- **fastapi:** REST API framework
-- **pydantic:** data validation
-- **streamlit:** web dashboard
-- **joblib:** model serialization
-
-## 📜 License
-
-TBD
-
-## 👥 Contributors
-
-- ML Engineer (Training & Serving)
-- Backend Engineer (FastAPI)
-- Frontend Engineer (Streamlit)
-
-## 📞 Support
-
-For issues or questions:
-1. Check logs: `LOG_LEVEL=DEBUG python ...`
-2. Review `.github/workflows/ci.yml` for pipeline commands
-3. Check `src/config/settings.py` for configuration options
+1. Update feature lists in `src/config/settings.py`.
+2. Update validation model in `src/utils/validators.py`.
+3. Retrain and regenerate artifacts.
+4. Re-test both FastAPI and Streamlit flows.
 
 ---
 
-**Last Updated:** May 5, 2026  
-**Model Version:** 1.0.0  
-**Python Version:** 3.11+
+Streamlit App: https://nito-msc-kfs-classifier.streamlit.app
