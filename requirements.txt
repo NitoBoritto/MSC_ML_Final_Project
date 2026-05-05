@@ -8,3 +8,6 @@ xgboost
 lightgbm
 optuna
 statsmodels
+mlflow
+streamlit
+plotly
